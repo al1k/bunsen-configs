@@ -47,9 +47,9 @@ rsync -rltb --suffix="$bkp_sfx" --safe-links /usr/share/bunsen/skel/ "$USERHOME"
 
 for i in "$USERHOME/.gtk-bookmarks" "$USERHOME/.config/nitrogen/nitrogen.cfg"
 do
-    [ -f "${i}.template" ] || continue
+    [[ -f "${i}.template" ]] || continue
     sed --in-place "s/%USERNAME%/$USER/g" "${i}.template"
-    if [ -f "$i" ]
+    if [[ -f "$i" ]]
     then
         if diff -BEbZ "$i" "${i}.template" >/dev/null
         then
