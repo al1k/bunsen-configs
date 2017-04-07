@@ -17,16 +17,35 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# USER="$1" USER is exported by lightdm
-[[ "$USER" = root || ! -d /home/"$USER" ]] && { echo "$0: variable USER has not been set correctly." >&2; exit 1;}
+declare USER=${USER} # environment set by lightdm
+declare USERHOME
 
-[ -f "/home/$USER/.config/bunsen/bl-setup" ] && exit 0
+# LDAP/ActiveDirectory users are known as user@domain. Retrieve just the
+# user.
+if [[ $USER =~ @ ]]; then
+    USER=${USER%%@*}
+fi
+
+if [[ "$USER" = root ]]; then 
+    echo "$0: ERROR: USER is root, abort" >&2
+    exit 1
+fi
+
+# Check for the user home directory
+USERHOME=$(getent passwd "$USER" | cut -d: -f6)
+if [[ -z "$USERHOME" || ! -d "$USERHOME" ]]; then
+    echo "$0: ERROR: user home directory <$USERHOME> is not set or does not exist." >&2
+    exit 1
+fi
+
+# Setup already ran, do nothing.
+[[ -f "$USERHOME/.config/bunsen/bl-setup" ]] && exit 0
 
 bkp_sfx="~$( date +%FT%T )~"
 
-rsync -rltb --suffix="$bkp_sfx" --safe-links /usr/share/bunsen/skel/ "/home/$USER"
+rsync -rltb --suffix="$bkp_sfx" --safe-links /usr/share/bunsen/skel/ "$USERHOME"
 
-for i in "/home/$USER/.gtk-bookmarks" "/home/$USER/.config/nitrogen/nitrogen.cfg"
+for i in "$USERHOME/.gtk-bookmarks" "$USERHOME/.config/nitrogen/nitrogen.cfg"
 do
     [ -f "${i}.template" ] || continue
     sed --in-place "s/%USERNAME%/$USER/g" "${i}.template"
@@ -44,11 +63,11 @@ do
     fi
 done
 
-ln -sTf /usr/share/images/bunsen/wallpapers "/home/$USER/Pictures/wallpapers/bunsen"
+ln -sTf /usr/share/images/bunsen/wallpapers "$USERHOME/Pictures/wallpapers/bunsen"
 
 mkdir -p "/home/$USER/.config/bunsen" # this should already exist
-touch "/home/$USER/.config/bunsen/bl-setup"
+touch "$USERHOME/.config/bunsen/bl-setup"
 
-chown -R "$USER":"$USER" "/home/$USER"
+chown -R "$USER":"$USER" "$USERHOME"
 
-exit
+exit 0
